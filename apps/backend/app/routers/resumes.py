@@ -929,6 +929,7 @@ async def _improve_preview_flow(
                 config=RefinementConfig(),
             )
             improved_data = refinement_result.refined_data
+            improved_data, _ = _preserve_personal_info(original_resume_data, improved_data)
             refinement_stats = RefinementStats(
                 passes_completed=refinement_result.passes_completed,
                 keywords_injected=(

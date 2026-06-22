@@ -1,0 +1,30 @@
+services:
+  resume-matcher:
+    image: ghcr.io/gutterhiro/resume-matcher:latest
+    container_name: resume-matcher-an2qmdjgi0gqi9z7azhkwuug
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - /data/resume-matcher:/app/backend/data
+    environment:
+      - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-http://localhost:3000}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_LLM=${LOG_LLM:-WARNING}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - LLM_MODEL=${LLM_MODEL:-}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_API_BASE=${LLM_API_BASE:-}
+    labels:
+      - traefik.enable=true
+      - traefik.http.middlewares.gzip.compress=true
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      - traefik.http.routers.http-0-an2qmdjgi0gqi9z7azhkwuug-resume-matcher.entryPoints=http
+      - traefik.http.routers.http-0-an2qmdjgi0gqi9z7azhkwuug-resume-matcher.middlewares=redirect-to-https
+      - traefik.http.routers.http-0-an2qmdjgi0gqi9z7azhkwuug-resume-matcher.rule=Host(`resume.iamthalles.com`) && PathPrefix(`/`)
+      - traefik.http.routers.https-0-an2qmdjgi0gqi9z7azhkwuug-resume-matcher.entryPoints=https
+      - traefik.http.routers.https-0-an2qmdjgi0gqi9z7azhkwuug-resume-matcher.middlewares=gzip
+      - traefik.http.routers.https-0-an2qmdjgi0gqi9z7azhkwuug-resume-matcher.rule=Host(`resume.iamthalles.com`) && PathPrefix(`/`)
+      - traefik.http.routers.https-0-an2qmdjgi0gqi9z7azhkwuug-resume-matcher.tls=true
+      - traefik.http.routers.https-0-an2qmdjgi0gqi9z7azhkwuug-resume-matcher.tls.certresolver=letsencrypt
+      - traefik.http.services.https-0-an2qmdjgi0gqi9z7azhkwuug-resume-matcher.loadbalancer.server.port=3000
+    restart: unless-stopped
