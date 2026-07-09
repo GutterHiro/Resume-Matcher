@@ -380,6 +380,32 @@ class RawResume(BaseModel):
     processing_status: str = "pending"  # pending, processing, ready, failed
 
 
+class InterviewPrepQuestion(BaseModel):
+    """Interview question grounded in the tailored resume and job context."""
+
+    question: str
+    focus_area: str | None = None
+    suggested_answer_points: list[str] = Field(default_factory=list)
+
+
+class InterviewPrepSkillGap(BaseModel):
+    """A preparation target, not a claimed candidate skill."""
+
+    skill: str
+    why_it_matters: str
+    preparation_suggestion: str
+
+
+class InterviewPrepData(BaseModel):
+    """Structured interview preparation content for a tailored resume."""
+
+    role_fit_analysis: list[str]
+    resume_questions: list[InterviewPrepQuestion]
+    project_follow_ups: list[InterviewPrepQuestion]
+    skill_gaps: list[InterviewPrepSkillGap]
+    talking_points: list[str]
+
+
 class ResumeFetchData(BaseModel):
     """Data payload for resume fetch response."""
 
@@ -388,6 +414,7 @@ class ResumeFetchData(BaseModel):
     processed_resume: ResumeData | None = None
     cover_letter: str | None = None
     outreach_message: str | None = None
+    interview_prep: InterviewPrepData | None = None
     parent_id: str | None = None  # For determining if resume is tailored
     title: str | None = None
 
@@ -483,6 +510,47 @@ class ResumeDiffSummary(BaseModel):
     high_risk_changes: int  # High-risk additions
 
 
+class ATSSubScores(BaseModel):
+    """Individual component scores that make up the ATS overall score."""
+
+    keyword_match: float = Field(
+        default=0.0, ge=0.0, le=100.0, description="Keyword match % (0–100)"
+    )
+    skills_coverage: float = Field(
+        default=0.0, ge=0.0, le=100.0, description="JD skills matched in resume (0–100)"
+    )
+    section_completeness: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=100.0,
+        description="Key resume sections present (0–100)",
+    )
+
+
+class ATSScore(BaseModel):
+    """ATS-style score breakdown for a resume against a job description."""
+
+    overall_score: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=100.0,
+        description="Weighted composite ATS score (0–100)",
+    )
+    sub_scores: ATSSubScores = Field(default_factory=ATSSubScores)
+    missing_keywords: list[str] = Field(
+        default_factory=list,
+        description="Job keywords absent from the tailored resume",
+    )
+    injectable_keywords: list[str] = Field(
+        default_factory=list,
+        description="Missing keywords that exist in the master resume and can be safely added",
+    )
+    recommendations: list[str] = Field(
+        default_factory=list,
+        description="Actionable suggestions to improve the ATS score",
+    )
+
+
 class RefinementStats(BaseModel):
     """Statistics from the multi-pass refinement process."""
 
@@ -522,6 +590,7 @@ class ImproveResumeData(BaseModel):
     markdownImproved: str | None = None
     cover_letter: str | None = None
     outreach_message: str | None = None
+    interview_prep: InterviewPrepData | None = None
 
     # Diff metadata
     diff_summary: ResumeDiffSummary | None = None
@@ -529,6 +598,9 @@ class ImproveResumeData(BaseModel):
 
     # Refinement metadata (multi-pass refinement stats)
     refinement_stats: "RefinementStats | None" = None
+
+    # ATS score breakdown
+    ats_score: "ATSScore | None" = None
 
     # Warning and status fields for transparency
     warnings: list[str] = Field(default_factory=list)
@@ -588,6 +660,7 @@ class FeatureConfigRequest(BaseModel):
 
     enable_cover_letter: bool | None = None
     enable_outreach_message: bool | None = None
+    enable_interview_prep: bool | None = None
 
 
 class FeatureConfigResponse(BaseModel):
@@ -595,6 +668,7 @@ class FeatureConfigResponse(BaseModel):
 
     enable_cover_letter: bool = False
     enable_outreach_message: bool = False
+    enable_interview_prep: bool = False
 
 
 class LanguageConfigRequest(BaseModel):
@@ -724,6 +798,13 @@ class GenerateContentResponse(BaseModel):
     """Response for on-demand content generation."""
 
     content: str
+    message: str
+
+
+class GenerateInterviewPrepResponse(BaseModel):
+    """Response for on-demand interview preparation generation."""
+
+    interview_prep: InterviewPrepData
     message: str
 
 

@@ -165,11 +165,13 @@ export const PROVIDER_INFO: Record<
 export interface FeatureConfig {
   enable_cover_letter: boolean;
   enable_outreach_message: boolean;
+  enable_interview_prep: boolean;
 }
 
 export interface FeatureConfigUpdate {
   enable_cover_letter?: boolean;
   enable_outreach_message?: boolean;
+  enable_interview_prep?: boolean;
 }
 
 // Fetch feature configuration
@@ -201,7 +203,7 @@ export async function updateFeatureConfig(config: FeatureConfigUpdate): Promise<
 }
 
 // Language configuration types
-export type SupportedLanguage = 'en' | 'es' | 'zh' | 'ja' | 'pt';
+export type SupportedLanguage = 'en' | 'es' | 'zh' | 'ja' | 'pt' | 'fr';
 
 export interface LanguageConfig {
   ui_language: SupportedLanguage;

@@ -14,7 +14,16 @@ import {
   renameResume,
 } from '@/lib/api/resume';
 import { useStatusCache } from '@/lib/context/status-cache';
-import { ArrowLeft, Edit, Download, Loader2, AlertCircle, Sparkles, Pencil } from 'lucide-react';
+import {
+  ArrowLeft,
+  Edit,
+  Download,
+  Loader2,
+  AlertCircle,
+  Sparkles,
+  Pencil,
+  MessagesSquare,
+} from 'lucide-react';
 import { EnrichmentModal } from '@/components/enrichment/enrichment-modal';
 import { useTranslations } from '@/lib/i18n';
 import { withLocalizedDefaultSections } from '@/lib/utils/section-helpers';
@@ -44,6 +53,7 @@ export default function ResumeViewerPage() {
   const [resumeTitle, setResumeTitle] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState('');
+  const [isTailoredResume, setIsTailoredResume] = useState(false);
 
   const resumeId = params?.id as string;
 
@@ -67,6 +77,7 @@ export default function ResumeViewerPage() {
 
         // Capture title for editable display (always set to clear stale state)
         setResumeTitle(data.title ?? null);
+        setIsTailoredResume(Boolean(data.parent_id));
 
         // Prioritize processed_resume if available (structured JSON)
         if (data.processed_resume) {
@@ -120,6 +131,10 @@ export default function ResumeViewerPage() {
 
   const handleEdit = () => {
     router.push(`/builder?id=${resumeId}`);
+  };
+
+  const handleInterviewPrep = () => {
+    router.push(`/builder?id=${resumeId}&tab=interview-prep`);
   };
 
   const handleTitleSave = async () => {
@@ -213,6 +228,60 @@ export default function ResumeViewerPage() {
     setShowDownloadSuccessDialog(false);
   };
 
+  // Delete-related dialogs, shared by the failed-processing error branch and the
+  // main viewer branch so the "Delete & Start Over" recovery action works in the
+  // error state. Previously these lived only in the main branch, so on the error
+  // path the confirm dialog never mounted and the delete request was never sent.
+  // (The loading branch omits them — it has no delete affordance.)
+  const deleteDialogs = (
+    <>
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title={
+          isMasterResume ? t('confirmations.deleteMasterResumeTitle') : t('dashboard.deleteResume')
+        }
+        description={
+          isMasterResume
+            ? t('confirmations.deleteMasterResumeDescription')
+            : t('confirmations.deleteResumeFromSystemDescription')
+        }
+        confirmLabel={t('confirmations.deleteResumeConfirmLabel')}
+        cancelLabel={t('confirmations.keepResumeCancelLabel')}
+        onConfirm={handleDeleteResume}
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        open={showDeleteSuccessDialog}
+        onOpenChange={setShowDeleteSuccessDialog}
+        title={t('resumeViewer.deletedTitle')}
+        description={
+          isMasterResume
+            ? t('resumeViewer.deletedDescriptionMaster')
+            : t('resumeViewer.deletedDescriptionRegular')
+        }
+        confirmLabel={t('resumeViewer.returnToDashboard')}
+        onConfirm={handleDeleteSuccessConfirm}
+        variant="success"
+        showCancelButton={false}
+      />
+
+      {deleteError && (
+        <ConfirmDialog
+          open={!!deleteError}
+          onOpenChange={() => setDeleteError(null)}
+          title={t('resumeViewer.deleteFailedTitle')}
+          description={deleteError}
+          confirmLabel={t('common.ok')}
+          onConfirm={() => setDeleteError(null)}
+          variant="danger"
+          showCancelButton={false}
+        />
+      )}
+    </>
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background">
@@ -229,56 +298,59 @@ export default function ResumeViewerPage() {
     const isFailed = processingStatus === 'failed';
 
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-        <div
-          className={`border p-6 text-center max-w-md shadow-sw-default ${
-            isProcessing
-              ? 'bg-blue-50 border-blue-200'
-              : isFailed
-                ? 'bg-orange-50 border-orange-200'
-                : 'bg-red-50 border-red-200'
-          }`}
-        >
-          <div className="flex justify-center mb-4">
-            {isProcessing ? (
-              <Loader2 className="w-8 h-8 animate-spin text-blue-700" />
-            ) : isFailed ? (
-              <AlertCircle className="w-8 h-8 text-orange-600" />
-            ) : (
-              <AlertCircle className="w-8 h-8 text-red-600" />
-            )}
-          </div>
-          <p
-            className={`font-bold mb-4 ${
-              isProcessing ? 'text-blue-700' : isFailed ? 'text-orange-700' : 'text-red-700'
+      <>
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+          <div
+            className={`border p-6 text-center max-w-md shadow-sw-default ${
+              isProcessing
+                ? 'bg-blue-50 border-blue-200'
+                : isFailed
+                  ? 'bg-orange-50 border-orange-200'
+                  : 'bg-red-50 border-red-200'
             }`}
           >
-            {error || t('resumeViewer.resumeNotFound')}
-          </p>
-          <div className="flex flex-col gap-2">
-            {isFailed && (
-              <>
-                <Button onClick={handleRetryProcessing} disabled={isRetrying}>
-                  {isRetrying ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      {t('common.processing')}
-                    </>
-                  ) : (
-                    t('resumeViewer.retryProcessing')
-                  )}
-                </Button>
-                <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
-                  {t('resumeViewer.deleteAndStartOver')}
-                </Button>
-              </>
-            )}
-            <Button variant="outline" onClick={() => router.push('/dashboard')}>
-              {t('resumeViewer.returnToDashboard')}
-            </Button>
+            <div className="flex justify-center mb-4">
+              {isProcessing ? (
+                <Loader2 className="w-8 h-8 animate-spin text-blue-700" />
+              ) : isFailed ? (
+                <AlertCircle className="w-8 h-8 text-orange-600" />
+              ) : (
+                <AlertCircle className="w-8 h-8 text-red-600" />
+              )}
+            </div>
+            <p
+              className={`font-bold mb-4 ${
+                isProcessing ? 'text-blue-700' : isFailed ? 'text-orange-700' : 'text-red-700'
+              }`}
+            >
+              {error || t('resumeViewer.resumeNotFound')}
+            </p>
+            <div className="flex flex-col gap-2">
+              {isFailed && (
+                <>
+                  <Button onClick={handleRetryProcessing} disabled={isRetrying}>
+                    {isRetrying ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {t('common.processing')}
+                      </>
+                    ) : (
+                      t('resumeViewer.retryProcessing')
+                    )}
+                  </Button>
+                  <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
+                    {t('resumeViewer.deleteAndStartOver')}
+                  </Button>
+                </>
+              )}
+              <Button variant="outline" onClick={() => router.push('/dashboard')}>
+                {t('resumeViewer.returnToDashboard')}
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+        {deleteDialogs}
+      </>
     );
   }
 
@@ -303,6 +375,12 @@ export default function ResumeViewerPage() {
               <Edit className="w-4 h-4" />
               {t('dashboard.editResume')}
             </Button>
+            {isTailoredResume && (
+              <Button variant="outline" onClick={handleInterviewPrep}>
+                <MessagesSquare className="w-4 h-4" />
+                {t('interviewPrep.title')}
+              </Button>
+            )}
             <Button variant="success" onClick={handleDownload} disabled={isDownloading}>
               <Download className="w-4 h-4" />
               {isDownloading ? t('common.generating') : t('resumeViewer.downloadResume')}
@@ -382,37 +460,7 @@ export default function ResumeViewerPage() {
         </div>
       </div>
 
-      <ConfirmDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        title={
-          isMasterResume ? t('confirmations.deleteMasterResumeTitle') : t('dashboard.deleteResume')
-        }
-        description={
-          isMasterResume
-            ? t('confirmations.deleteMasterResumeDescription')
-            : t('confirmations.deleteResumeFromSystemDescription')
-        }
-        confirmLabel={t('confirmations.deleteResumeConfirmLabel')}
-        cancelLabel={t('confirmations.keepResumeCancelLabel')}
-        onConfirm={handleDeleteResume}
-        variant="danger"
-      />
-
-      <ConfirmDialog
-        open={showDeleteSuccessDialog}
-        onOpenChange={setShowDeleteSuccessDialog}
-        title={t('resumeViewer.deletedTitle')}
-        description={
-          isMasterResume
-            ? t('resumeViewer.deletedDescriptionMaster')
-            : t('resumeViewer.deletedDescriptionRegular')
-        }
-        confirmLabel={t('resumeViewer.returnToDashboard')}
-        onConfirm={handleDeleteSuccessConfirm}
-        variant="success"
-        showCancelButton={false}
-      />
+      {deleteDialogs}
 
       <ConfirmDialog
         open={showDownloadSuccessDialog}
@@ -424,19 +472,6 @@ export default function ResumeViewerPage() {
         variant="success"
         showCancelButton={false}
       />
-
-      {deleteError && (
-        <ConfirmDialog
-          open={!!deleteError}
-          onOpenChange={() => setDeleteError(null)}
-          title={t('resumeViewer.deleteFailedTitle')}
-          description={deleteError}
-          confirmLabel={t('common.ok')}
-          onConfirm={() => setDeleteError(null)}
-          variant="danger"
-          showCancelButton={false}
-        />
-      )}
 
       {/* Enrichment Modal - Only for master resume */}
       {isMasterResume && (
