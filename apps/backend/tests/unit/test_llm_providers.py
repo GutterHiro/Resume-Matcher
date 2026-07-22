@@ -107,8 +107,10 @@ class TestNormalizeApiBase:
     def test_gemini_strips_v1(self):
         assert _normalize_api_base("gemini", "https://host/v1") == "https://host"
 
-    def test_openrouter_strips_v1(self):
-        assert _normalize_api_base("openrouter", "https://openrouter.ai/api/v1") == "https://openrouter.ai/api"
+    def test_openrouter_preserves_v1(self):
+        assert _normalize_api_base(
+            "openrouter", "https://openrouter.ai/api/v1"
+        ) == "https://openrouter.ai/api/v1"
 
     @pytest.mark.parametrize(
         "pasted",
